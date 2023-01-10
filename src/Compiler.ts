@@ -1,11 +1,12 @@
 import path from "path";
-import { promises as fs } from "fs";
+import fs from "fs";
 
+import { Compilation } from "./Compilation";
 import { manifestTemplate } from "./templates";
 import { BundlesMap, Config, Context, Entries, Entry } from "./types";
-import { Compilation } from "./Compilation";
 
 const ROOT_DIR = path.dirname(path.resolve(__dirname, "../package.json"));
+const OUTPUT_DIR = `${ROOT_DIR}/output`;
 
 export class Compiler {
   config: Config;
@@ -24,9 +25,9 @@ export class Compiler {
       (acc, [name, importPath]) => {
         const entry: Entry = {
           name,
-          absolutePath: path.isAbsolute(importPath)
-            ? importPath
-            : path.join(ROOT_DIR, importPath),
+          relativePath: path.isAbsolute(importPath)
+            ? "./" + path.relative(ROOT_DIR, importPath)
+            : importPath,
         };
 
         acc[name] = entry;
@@ -46,41 +47,40 @@ export class Compiler {
     };
   };
 
-  private ensureOutput = async () => {
+  private ensureOutput = () => {
     let outputDirExists = true;
+
     try {
-      await fs.stat(`${ROOT_DIR}/output`);
+      fs.statSync(OUTPUT_DIR);
     } catch (error) {
       outputDirExists = false;
     }
 
     if (outputDirExists) {
-      await fs.rm(`${ROOT_DIR}/output`, {
+      fs.rmSync(OUTPUT_DIR, {
         force: true,
         recursive: true,
       });
     }
 
-    await fs.mkdir(`${ROOT_DIR}/output`);
+    fs.mkdirSync(OUTPUT_DIR);
   };
 
   private createManifestBundle = async () => {
-    const { rootdir } = this.context;
-
-    await fs.writeFile(
-      `${rootdir}/output/manifest.js`,
+    fs.writeFileSync(
+      `${OUTPUT_DIR}/manifest.js`,
       manifestTemplate(this.context.bundlesMap)
     );
   };
 
-  compile = async () => {
-    await this.ensureOutput();
+  compile = () => {
+    this.ensureOutput();
 
     new Compilation(
       Object.entries(this.context.entries)[0][1],
       this.context
     ).compile();
 
-    await this.createManifestBundle();
+    this.createManifestBundle();
   };
 }

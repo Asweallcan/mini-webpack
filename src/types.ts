@@ -9,13 +9,13 @@ export type Config = {
 
 export type Entry = {
   name: string;
-  absolutePath: string;
+  relativePath: string;
 };
 
 export type Entries = Record<string, Entry>;
 
 export type BundlesMap = Record<
-  string, // absolute path
+  string, // relative path
   string // bundle name
 >;
 
@@ -35,7 +35,7 @@ export type Dependency = {
   isEntry: boolean;
   isExternal: boolean;
   importPath: string;
-  absolutePath: string;
+  relativePath: string;
 };
 
 export type Asset = {
@@ -46,10 +46,10 @@ export type Asset = {
     string,
     {
       isAsync: boolean;
-      absolutePath: string;
+      relativePath: string;
     }
   >; // import path =>
   importPath: string;
-  absolutePath: string;
+  relativePath: string;
   dependencies: Dependency[];
 };

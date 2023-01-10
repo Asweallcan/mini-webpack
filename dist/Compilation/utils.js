@@ -7,9 +7,9 @@ const isNodeModule = (importPath, alias) => {
         !alias[importPath]);
 };
 exports.isNodeModule = isNodeModule;
-const isEntry = (absolutePath, entries) => {
+const isEntry = (relativePath, entries) => {
     for (const entry of Object.values(entries)) {
-        if (entry.absolutePath === absolutePath)
+        if (entry.relativePath === relativePath)
             return true;
     }
     return false;

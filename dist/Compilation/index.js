@@ -10,48 +10,50 @@ const traverse_1 = __importDefault(require("@babel/traverse"));
 const core_1 = require("@babel/core");
 const types_1 = require("@babel/types");
 const templates_1 = require("../templates");
-const extensions_1 = require("./extensions");
 const utils_1 = require("./utils");
-let ID = 0;
+const extensions_1 = require("./extensions");
+let ASSET_ID = 0;
 class Compilation {
     entry;
     context;
-    graph;
+    graph = {};
     constructor(entry, context) {
         this.entry = entry;
         this.context = context;
-        this.graph = this.createGraph({ entry });
+        this.createGraph({ entry });
     }
     createDependency = (params) => {
-        const { isAsync, importPath, parentAbsolutePath } = params;
+        const { isAsync, importPath, parentRelativePath } = params;
         const { rootdir, alias, extensions, externals } = this.context;
-        let absolutePath = "";
+        let relativePath = "";
         let isExternal = false;
         if ((0, utils_1.isNodeModule)(importPath, alias)) {
-            const packageJson = (0, fs_1.readFileSync)(`${rootdir}/node_modules/${importPath}/package.json`).toString();
-            const { main } = JSON.parse(packageJson);
-            absolutePath = `${rootdir}/node_modules/${importPath}/${main}`;
+            const { main } = JSON.parse((0, fs_1.readFileSync)(`${rootdir}/node_modules/${importPath}/package.json`).toString());
+            relativePath = `./node_modules/${importPath}/${main}`;
             isExternal = externals[importPath];
         }
         else if (alias[importPath]) {
-            absolutePath = path_1.default.isAbsolute(alias[importPath])
-                ? alias[importPath]
-                : path_1.default.join(rootdir, alias[importPath]);
+            relativePath = path_1.default.isAbsolute(alias[importPath])
+                ? "./" + path_1.default.relative(rootdir, alias[importPath])
+                : alias[importPath];
         }
         else {
-            absolutePath = (0, extensions_1.completeAbsolutePathWithExtention)(path_1.default.join(path_1.default.dirname(parentAbsolutePath), importPath), extensions);
+            relativePath = (0, extensions_1.completeFilenameWithExtention)("./" + path_1.default.join(path_1.default.dirname(parentRelativePath), importPath), extensions);
         }
         return {
             isAsync,
-            isEntry: (0, utils_1.isEntry)(absolutePath, this.context.entries),
+            isEntry: (0, utils_1.isEntry)(relativePath, this.context.entries),
             isExternal,
             importPath,
-            absolutePath,
+            relativePath,
         };
     };
     createAsset = (params) => {
-        const { importPath, absolutePath } = params;
-        const content = (0, fs_1.readFileSync)(absolutePath, { encoding: "utf-8" }).replace(/process\.env\.NODE_ENV\s*([!=]==?)\s*['"](.+?)['"]/g, (match, operator, $1) => {
+        const { rootdir } = this.context;
+        const { importPath, relativePath } = params;
+        const content = (0, fs_1.readFileSync)(path_1.default.join(rootdir, relativePath), {
+            encoding: "utf-8",
+        }).replace(/process\.env\.NODE_ENV\s*([!=]==?)\s*['"](.+?)['"]/g, (match, operator, $1) => {
             return eval(`"${process.env.NODE_ENV}" ${operator} "${$1}"`);
         });
         const ast = (0, core_1.parseSync)(content, {
@@ -68,7 +70,7 @@ class Compilation {
                     dependencies.push(this.createDependency({
                         isAsync: false,
                         importPath,
-                        parentAbsolutePath: absolutePath,
+                        parentRelativePath: relativePath,
                     }));
                 },
             },
@@ -78,7 +80,7 @@ class Compilation {
                         isAsync: true,
                         // @ts-ignore
                         importPath: node.arguments[0].value,
-                        parentAbsolutePath: absolutePath,
+                        parentRelativePath: relativePath,
                     }));
                     node.callee = (0, types_1.memberExpression)((0, types_1.identifier)("require"), (0, types_1.identifier)("ensure"));
                 }
@@ -88,7 +90,7 @@ class Compilation {
                         isAsync: false,
                         // @ts-ignore
                         importPath: node.arguments[0].value,
-                        parentAbsolutePath: absolutePath,
+                        parentRelativePath: relativePath,
                     }));
                 }
             },
@@ -111,75 +113,73 @@ class Compilation {
             minified: true,
         });
         return {
-            id: ID++,
+            id: ASSET_ID++,
             code: code,
             mapping: {},
             bundles: {},
             importPath,
-            absolutePath,
+            relativePath,
             dependencies,
         };
     };
     createGraph = (params) => {
         const { entry } = params;
         const entryAsset = this.createAsset({
-            absolutePath: entry.absolutePath,
+            relativePath: entry.relativePath,
         });
         const assetsQueue = [entryAsset];
         const addedAssets = {};
-        const graph = {};
         for (const asset of assetsQueue) {
             const { dependencies } = asset;
             for (const dependency of dependencies) {
                 if (dependency.isAsync || dependency.isEntry || dependency.isExternal) {
                     asset.bundles[dependency.importPath] = {
                         isAsync: dependency.isAsync,
-                        absolutePath: dependency.absolutePath,
+                        relativePath: dependency.relativePath,
                     };
                     continue;
                 }
-                if (addedAssets[dependency.absolutePath]) {
+                if (addedAssets[dependency.relativePath]) {
                     asset.mapping[dependency.importPath] =
-                        addedAssets[dependency.absolutePath];
+                        addedAssets[dependency.relativePath];
                     continue;
                 }
                 const child = this.createAsset({
                     importPath: dependency.importPath,
-                    absolutePath: dependency.absolutePath,
+                    relativePath: dependency.relativePath,
                 });
-                addedAssets[dependency.absolutePath] = asset.mapping[dependency.importPath] = child.id;
+                addedAssets[dependency.relativePath] = asset.mapping[dependency.importPath] = child.id;
                 assetsQueue.push(child);
             }
-            graph[asset.id] = asset;
+            this.graph[asset.id] = asset;
         }
-        return graph;
     };
     compile = () => {
         const { rootdir } = this.context;
-        const { absolutePath } = this.entry;
-        if (this.context.bundlesMap[absolutePath])
+        const { relativePath } = this.entry;
+        if (this.context.bundlesMap[relativePath])
             return;
         for (const { dependencies } of Object.values(this.graph)) {
             for (const dependency of dependencies) {
                 const { isAsync, isExternal } = dependency;
-                if (this.context.bundlesMap[dependency.absolutePath])
+                if (this.context.bundlesMap[dependency.relativePath])
                     continue;
                 if (dependency.isEntry) {
-                    const [name, entry] = Object.entries(this.context.entries).find(([name, e]) => e.absolutePath === dependency.absolutePath);
+                    const [name, entry] = Object.entries(this.context.entries).find(([name, e]) => e.relativePath === dependency.relativePath);
                     if (entry)
                         new Compilation(entry, this.context).compile();
                 }
                 if (isExternal) {
                     const entry = {
                         name: dependency.importPath,
-                        absolutePath: dependency.absolutePath,
+                        relativePath: dependency.relativePath,
                     };
                     new Compilation(entry, this.context).compile();
                 }
                 if (!dependency.isEntry && !isExternal && isAsync) {
                     const entry = {
-                        name: (0, extensions_1.removeExtension)(dependency.absolutePath, this.context.extensions),
-                        absolutePath: dependency.absolutePath,
+                        name: (0, extensions_1.removeExtension)(dependency.relativePath, this.context.extensions),
+                        relativePath: dependency.relativePath,
                     };
                     new Compilation(entry, this.context).compile();
                 }
@@ -188,9 +188,9 @@ class Compilation {
         const bundle = (0, templates_1.bundleTemplate)({
             name: this.entry.name,
             graph: this.graph,
-            absolutePath,
+            relativePath,
         });
-        this.context.bundlesMap[absolutePath] = this.entry.name;
+        this.context.bundlesMap[relativePath] = this.entry.name;
         (0, fs_1.writeFileSync)(`${rootdir}/output/${this.entry.name}.js`, bundle);
     };
 }

@@ -13,10 +13,9 @@ webpack({
   resolve: {
     extensions: [".js", ".ts", ".tsx", ".ts", ".json", ".css", ".img"],
   },
-})
-  .compile()
-  .then(() => {
-    const htmlTemplate = `
+}).compile();
+
+const htmlTemplate = `
   <!DOCTYPE html>
   <html lang="en">
     <head>
@@ -32,5 +31,4 @@ webpack({
   </html>
   `;
 
-    fs.writeFileSync("./output/index.html", htmlTemplate);
-  });
+fs.writeFileSync("./output/index.html", htmlTemplate);

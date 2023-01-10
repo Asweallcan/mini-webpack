@@ -11,9 +11,9 @@ export const isNodeModule = (
   );
 };
 
-export const isEntry = (absolutePath: string, entries: Entries) => {
+export const isEntry = (relativePath: string, entries: Entries) => {
   for (const entry of Object.values(entries)) {
-    if (entry.absolutePath === absolutePath) return true;
+    if (entry.relativePath === relativePath) return true;
   }
 
   return false;

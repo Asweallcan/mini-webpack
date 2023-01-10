@@ -14,19 +14,19 @@ export const isWithExtension = (filename: string, extensions: string[]) => {
   return false;
 };
 
-export const completeAbsolutePathWithExtention = (
-  absolutePath: string,
+export const completeFilenameWithExtention = (
+  filename: string,
   extensions: string[]
 ) => {
-  if (isWithExtension(absolutePath, extensions)) {
-    return absolutePath;
+  if (isWithExtension(filename, extensions)) {
+    return filename;
   }
 
   for (let i = 0; i < extensions.length; i++) {
     const ext = extensions[i];
 
     try {
-      const res = absolutePath + ext;
+      const res = filename + ext;
 
       statSync(res);
 
@@ -34,7 +34,7 @@ export const completeAbsolutePathWithExtention = (
     } catch (error) {}
   }
 
-  throw new Error(`No extentsion found valid for ${absolutePath}`);
+  throw new Error(`No extentsion found valid for ${filename}`);
 };
 
 export const removeExtension = (filename: string, extensions: string[]) => {

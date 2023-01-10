@@ -6,17 +6,17 @@ window.__webpackLoadedBundles = {};
 window.__webpackLoadingBundles = {};
 function __importPreBundles(modules) {
     const bundles = Object.values(modules).map(m => Object.values(m.bundles)).flat().filter(b => !b.isAsync);
-    return Promise.all(bundles.map(b => __importBundle(b.absolutePath)));
+    return Promise.all(bundles.map(b => __importBundle(b.relativePath)));
 }
-function __importBundle(absolutePath) {
-    const name = __webpackBundlesMap[absolutePath];
+function __importBundle(relativePath) {
+    const name = __webpackBundlesMap[relativePath];
     if(__webpackLoadedBundles[name]) return __webpackLoadedBundles[name];
-    if(__webpackLoadingBundles[absolutePath]) return __webpackLoadingBundles[absolutePath].promise;
-    __webpackLoadingBundles[absolutePath] = {};
-    return (__webpackLoadingBundles[absolutePath].promise = new Promise(resolve => {
-        __webpackLoadingBundles[absolutePath].resolve = (params) => {
+    if(__webpackLoadingBundles[relativePath]) return __webpackLoadingBundles[relativePath].promise;
+    __webpackLoadingBundles[relativePath] = {};
+    return (__webpackLoadingBundles[relativePath].promise = new Promise(resolve => {
+        __webpackLoadingBundles[relativePath].resolve = (params) => {
             resolve(params);
-            delete __webpackLoadingBundles[absolutePath];
+            delete __webpackLoadingBundles[relativePath];
         }
         const script = document.createElement("script");
         script.type = "text/javascript";
@@ -29,10 +29,10 @@ function __require(modules, id) {
     const module = { exports: {} };
     const require = (importPath) => {
       const bundle = bundles[importPath];
-      if(bundle) return __webpackLoadedBundles[__webpackBundlesMap[bundle.absolutePath]];
+      if(bundle) return __webpackLoadedBundles[__webpackBundlesMap[bundle.relativePath]];
       return __require(modules, mapping[importPath]);
     }
-    require.ensure = importPath => __importBundle(bundles[importPath].absolutePath);
+    require.ensure = importPath => __importBundle(bundles[importPath].relativePath);
     fn(require, module, module.exports);
     return module.exports;
 }

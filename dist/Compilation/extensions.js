@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.removeExtension = exports.completeAbsolutePathWithExtention = exports.isWithExtension = void 0;
+exports.removeExtension = exports.completeFilenameWithExtention = exports.isWithExtension = void 0;
 const fs_1 = require("fs");
 const isWithExtension = (filename, extensions) => {
     const last = filename.split("/").pop();
@@ -13,22 +13,22 @@ const isWithExtension = (filename, extensions) => {
     return false;
 };
 exports.isWithExtension = isWithExtension;
-const completeAbsolutePathWithExtention = (absolutePath, extensions) => {
-    if ((0, exports.isWithExtension)(absolutePath, extensions)) {
-        return absolutePath;
+const completeFilenameWithExtention = (filename, extensions) => {
+    if ((0, exports.isWithExtension)(filename, extensions)) {
+        return filename;
     }
     for (let i = 0; i < extensions.length; i++) {
         const ext = extensions[i];
         try {
-            const res = absolutePath + ext;
+            const res = filename + ext;
             (0, fs_1.statSync)(res);
             return res;
         }
         catch (error) { }
     }
-    throw new Error(`No extentsion found valid for ${absolutePath}`);
+    throw new Error(`No extentsion found valid for ${filename}`);
 };
-exports.completeAbsolutePathWithExtention = completeAbsolutePathWithExtention;
+exports.completeFilenameWithExtention = completeFilenameWithExtention;
 const removeExtension = (filename, extensions) => {
     if (!(0, exports.isWithExtension)(filename, extensions))
         return filename;
